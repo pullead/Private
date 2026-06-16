@@ -8,31 +8,45 @@ from safety import assert_safe_data
 
 
 TOPIC_LABELS = {
-    "reservation_wait": "预约/等待",
-    "pricing_campaign": "价格/活动",
+    "reservation_wait": "预约等待",
+    "pricing_campaign": "价格活动",
     "business_hours": "营业时间",
     "schedule_change": "排班变更",
-    "reception_system": "受付/系统",
+    "reception_system": "受付系统",
     "shop_rules": "店铺规则",
-    "location_access": "位置/交通",
-    "hygiene_environment": "卫生/环境",
-    "crowding_popularity": "拥挤度/人气",
-    "notice_announcement": "公告/广告",
-    "complaint_anomaly": "投诉/异常",
+    "location_access": "位置交通",
+    "hygiene_environment": "卫生环境",
+    "crowding_popularity": "人气热度",
+    "notice_announcement": "公告更新",
+    "complaint_anomaly": "异常反馈",
 }
 
-TOPIC_SUMMARIES = {
-    "reservation_wait": "预约、空き或等待情况被提到，可能需要打开原帖确认可约状态。",
-    "pricing_campaign": "有人讨论价格、优惠、活动或费用变化。",
-    "business_hours": "营业时间、休业或开闭店安排有相关讨论。",
-    "schedule_change": "排班或出勤安排被提到，但不展开具体个人信息。",
-    "reception_system": "受付、电话、网页预约或店铺系统流程被讨论。",
-    "shop_rules": "店铺规则、支付方式或注意事项相关内容较多。",
-    "location_access": "位置、交通、停车或到店路线被提到。",
-    "hygiene_environment": "店内环境、卫生或设施状态有相关讨论。",
-    "crowding_popularity": "整体热度、拥挤程度或人气变化被提到。",
-    "notice_announcement": "公告、广告或官方更新信息被讨论。",
-    "complaint_anomaly": "出现投诉、异常或疑似问题反馈，建议人工查看。",
+TOPIC_HEADLINES = {
+    "reservation_wait": "预约和等待情况被反复提到，建议关注可约状态",
+    "pricing_campaign": "价格、优惠或活动信息有新讨论",
+    "business_hours": "营业时间或休业安排出现讨论",
+    "schedule_change": "排班相关信息被提到，需到原帖确认细节",
+    "reception_system": "受付、电话或网页预约流程被讨论",
+    "shop_rules": "规则、支付方式或注意事项是主要话题",
+    "location_access": "位置、交通或到店路线被提到",
+    "hygiene_environment": "店内环境、卫生或设施状态有讨论",
+    "crowding_popularity": "热度和拥挤程度有变化迹象",
+    "notice_announcement": "公告、广告或官方更新被提到",
+    "complaint_anomaly": "出现异常反馈，建议优先人工查看",
+}
+
+TOPIC_DETAILS = {
+    "reservation_wait": "讨论重点偏向预约难度、空き情况、等待时间或现场混杂度。",
+    "pricing_campaign": "要点集中在费用变化、优惠活动、套餐或活动规则。",
+    "business_hours": "可能涉及开店闭店、临时休业、节假日安排等信息。",
+    "schedule_change": "只提示排班层面有变化，不展开具体个人内容。",
+    "reception_system": "可能涉及电话响应、网站预约、受付流程或系统使用体验。",
+    "shop_rules": "讨论集中在支付、规则、注意事项或到店流程。",
+    "location_access": "可能涉及路线、车站、停车或周边位置。",
+    "hygiene_environment": "讨论偏向店内环境、清洁状态或设施体验。",
+    "crowding_popularity": "可理解为论坛热度、关注度或拥挤感上升。",
+    "notice_announcement": "可能是官方信息、广告内容或页面更新。",
+    "complaint_anomaly": "内容不适合自动展开，建议打开原帖核对。",
 }
 
 
@@ -41,16 +55,18 @@ def build_bark_message(summary: dict, thread_url: str, checked_at: str) -> tuple
     day_count = int(summary.get("day_new_count", interval_count) or 0)
     latest_res_no = int(summary.get("latest_res_no", 0) or 0)
     interval_range = summary.get("interval_res_range", summary.get("res_range", "")) or "-"
-
-    title = f"神戸妻 新レス{interval_count}件 / 今日{day_count}件"
+    title = f"今日论坛速览｜神戸妻｜新{interval_count} / 今日{day_count}"
     message = "\n".join(
         [
-            f"最新：#{latest_res_no}　范围：{interval_range}",
+            f"6月16日｜最新 #{latest_res_no}｜{interval_range}",
             "",
-            "【讨论概括】",
-            _format_topic_summary(summary.get("topics", {})),
+            "【热帖速览】",
+            _format_cards(summary.get("topics", {}), limit=2),
             "",
-            f"【本次确认】{_format_manual(summary.get('interval_topics', summary.get('topics', {})), summary.get('manual_check_ranges', []))}",
+            "【新帖速递】",
+            _format_cards(summary.get("interval_topics", summary.get("topics", {})), limit=2),
+            "",
+            f"【人工确认】{_format_manual(summary.get('interval_topics', summary.get('topics', {})), summary.get('manual_check_ranges', []))}",
             "点开通知查看原帖",
         ]
     )
@@ -95,20 +111,33 @@ def normalize_bark_key(value: str) -> str:
     return cleaned
 
 
-def _format_topic_summary(topics: dict) -> str:
+def _format_cards(topics: dict, limit: int) -> str:
+    ranked = _rank_topics(topics)
+    if not ranked:
+        return "暂无可安全概括的店铺级主题。"
+
+    cards = []
+    for topic, count in ranked[:limit]:
+        cards.append(
+            "\n".join(
+                [
+                    f"- {TOPIC_HEADLINES[topic]}",
+                    f"  标签：{TOPIC_LABELS[topic]}｜{count}件",
+                    f"  要点：{TOPIC_DETAILS[topic]}",
+                ]
+            )
+        )
+    return "\n".join(cards)
+
+
+def _rank_topics(topics: dict) -> list[tuple[str, int]]:
     ranked = [
         (topic, int(count))
         for topic, count in topics.items()
         if topic in TOPIC_LABELS and int(count) > 0
     ]
     ranked.sort(key=lambda item: item[1], reverse=True)
-    if not ranked:
-        return "没有识别到明显的店铺级讨论主题。"
-
-    lines = []
-    for index, (topic, count) in enumerate(ranked[:4], start=1):
-        lines.append(f"{index}. {TOPIC_LABELS[topic]}（{count}件）：{TOPIC_SUMMARIES[topic]}")
-    return "\n".join(lines)
+    return ranked
 
 
 def _format_manual(topics: dict, ranges: list[str]) -> str:
@@ -116,7 +145,7 @@ def _format_manual(topics: dict, ranges: list[str]) -> str:
     if count <= 0:
         return "无"
     if not ranges:
-        return f"{count}件内容无法安全概括，建议人工查看。"
+        return f"{count}件无法安全概括，建议人工查看。"
     if len(ranges) == 1:
-        return f"{count}件内容无法安全概括：{ranges[0]}"
-    return f"{count}件内容无法安全概括：{ranges[0]} 等"
+        return f"{count}件无法安全概括：{ranges[0]}"
+    return f"{count}件无法安全概括：{ranges[0]} 等"
