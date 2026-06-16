@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from urllib.parse import quote, urlparse
+from urllib.parse import quote, urlencode, urlparse
 from urllib.request import Request, urlopen
 
 from safety import assert_safe_data
@@ -19,25 +19,20 @@ TOPIC_LABELS = {
     "crowding_popularity": "拥挤度/人气",
     "notice_announcement": "公告/广告",
     "complaint_anomaly": "投诉/异常",
-    "needs_manual_check": "需人工查看",
 }
 
 
 def build_bark_message(summary: dict, thread_url: str, checked_at: str) -> tuple[str, str]:
-    topic_parts = [
-        f"{TOPIC_LABELS.get(topic, topic)}:{count}"
-        for topic, count in summary.get("topics", {}).items()
-    ]
-    manual = ",".join(summary.get("manual_check_ranges", [])) or "无"
-    title = "论坛线程每日摘要"
-    message = (
-        f"新增 {summary.get('new_count', 0)} 件。"
-        f"最新レス番号：{summary.get('latest_res_no', 0)}。"
-        f"范围：{summary.get('res_range', '')}。"
-        f"主题：{'; '.join(topic_parts) or '无'}。"
-        f"需人工查看:{manual}。"
-        f"检测时间：{checked_at}。"
-        f"线程URL：{thread_url}"
+    new_count = int(summary.get("new_count", 0) or 0)
+    latest_res_no = int(summary.get("latest_res_no", 0) or 0)
+    title = f"神戸妻 新レス{new_count}件 #{latest_res_no}"
+    message = "\n".join(
+        [
+            f"范围：{summary.get('res_range', '') or '-'}",
+            f"主题：{_format_topics(summary.get('topics', {}))}",
+            f"确认：{_format_manual(summary.get('topics', {}), summary.get('manual_check_ranges', []))}",
+            "点开通知查看原帖",
+        ]
     )
     assert_safe_data({"title": title, "message": message})
     return title, message
@@ -48,6 +43,7 @@ def send_bark_notification(
     title: str,
     message: str,
     timeout: float = 10.0,
+    link_url: str = "",
     opener: Callable = urlopen,
 ) -> None:
     normalized_key = normalize_bark_key(bark_key)
@@ -58,6 +54,8 @@ def send_bark_notification(
         f"https://api.day.app/{quote(normalized_key, safe='')}/"
         f"{quote(title, safe='')}/{quote(message, safe='')}"
     )
+    if link_url:
+        url += "?" + urlencode({"url": link_url})
     request = Request(url, headers={"User-Agent": "BakusaiSafeSummary/1.0"})
     with opener(request, timeout=timeout) as response:
         response.read()
@@ -75,3 +73,26 @@ def normalize_bark_key(value: str) -> str:
     if parsed.netloc.endswith("day.app") and parts:
         return parts[0]
     return cleaned
+
+
+def _format_topics(topics: dict) -> str:
+    ranked = [
+        (topic, int(count))
+        for topic, count in topics.items()
+        if topic in TOPIC_LABELS and int(count) > 0
+    ]
+    ranked.sort(key=lambda item: item[1], reverse=True)
+    if not ranked:
+        return "无明显店铺级主题"
+    return "、".join(f"{TOPIC_LABELS[topic]}({count})" for topic, count in ranked[:3])
+
+
+def _format_manual(topics: dict, ranges: list[str]) -> str:
+    count = int(topics.get("needs_manual_check", 0) or 0)
+    if count <= 0:
+        return "无"
+    if not ranges:
+        return f"{count}件"
+    if len(ranges) == 1:
+        return f"{count}件（{ranges[0]}）"
+    return f"{count}件（{ranges[0]} 等）"

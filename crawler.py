@@ -35,10 +35,11 @@ def run_once(
     state_data = load_state(config.state_file)
     previous = state_data.get("threads", {}).get("main", {})
     previous_res_no = int(previous.get("last_seen_res_no", 0) or 0)
+    is_first_run = not bool(previous)
 
     html = _fetch_with_single_retry(fetcher, config.target_url, config.request_timeout)
     metadata = parse_thread_metadata(html)
-    has_new = metadata.latest_res_no > previous_res_no
+    has_new = metadata.latest_res_no > previous_res_no and not is_first_run
     summary = (
         summarize_shop_topics(html, previous_res_no, summary_date) if has_new else None
     )
@@ -64,7 +65,9 @@ def run_once(
         if notifier:
             notifier(title, message)
         else:
-            send_bark_notification(config.bark_key, title, message)
+            send_bark_notification(
+                config.bark_key, title, message, link_url=config.target_url
+            )
     except Exception as exc:
         print(f"[WARN] Notification failed: {exc}", file=sys.stderr)
     return 0

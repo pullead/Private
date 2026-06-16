@@ -97,7 +97,7 @@ class CrawlerTests(unittest.TestCase):
             self.assertEqual(notifications, [])
             self.assertFalse((summary_dir / "2026-06-16.json").exists())
 
-    def test_initial_run_counts_loaded_entries_not_latest_number_gap(self):
+    def test_initial_run_sets_baseline_without_notification_or_summary(self):
         html = """
         <dl id="res_list">
           <div class="article res_list_article " id="res401">
@@ -128,11 +128,10 @@ class CrawlerTests(unittest.TestCase):
             )
 
             saved = json.loads(state_path.read_text(encoding="utf-8"))
-            summary = json.loads((summary_dir / "2026-06-16.json").read_text(encoding="utf-8"))
             self.assertEqual(result, 0)
             self.assertEqual(saved["threads"]["main"]["last_seen_res_no"], 402)
-            self.assertEqual(saved["threads"]["main"]["new_count_today"], 2)
-            self.assertEqual(summary["new_count"], 2)
+            self.assertEqual(saved["threads"]["main"]["new_count_today"], 0)
+            self.assertFalse((summary_dir / "2026-06-16.json").exists())
 
     def test_notification_failure_does_not_fail_monitor_run(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -153,7 +152,7 @@ class CrawlerTests(unittest.TestCase):
             )
 
             self.assertEqual(result, 0)
-            self.assertTrue((summary_dir / "2026-06-16.json").exists())
+            self.assertFalse((summary_dir / "2026-06-16.json").exists())
 
 
 if __name__ == "__main__":
