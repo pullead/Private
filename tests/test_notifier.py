@@ -6,28 +6,37 @@ from safety import assert_safe_data
 
 
 class NotifierTests(unittest.TestCase):
-    def test_build_bark_message_contains_only_safe_summary_fields(self):
+    def test_build_bark_message_contains_readable_daily_summary(self):
         title, message = build_bark_message(
             {
                 "summary_date": "2026-06-16",
-                "new_count": 3,
+                "interval_new_count": 3,
+                "day_new_count": 8,
                 "latest_res_no": 12342,
-                "res_range": "#12340-#12342",
+                "interval_res_range": "#12340-#12342",
                 "topics": {
+                    "reservation_wait": 4,
+                    "pricing_campaign": 2,
+                    "shop_rules": 1,
+                    "needs_manual_check": 1,
+                },
+                "interval_topics": {
                     "reservation_wait": 2,
                     "pricing_campaign": 1,
                     "needs_manual_check": 1,
                 },
-                "manual_check_ranges": ["#12342", "#12343", "#12344"],
+                "manual_check_ranges": ["#12342", "#12343"],
             },
             thread_url="https://bakusai.com/thread/example/",
             checked_at="2026-06-16T12:00:00+09:00",
         )
 
-        self.assertEqual(title, "神戸妻 新レス3件 #12342")
-        self.assertIn("范围：#12340-#12342", message)
-        self.assertIn("主题：预约/等待(2)、价格/活动(1)", message)
-        self.assertIn("确认：1件（#12342 等）", message)
+        self.assertEqual(title, "神戸妻 新レス3件 / 今日8件")
+        self.assertIn("最新：#12342　范围：#12340-#12342", message)
+        self.assertIn("【今日主题】", message)
+        self.assertIn("1. 预约/等待：4件", message)
+        self.assertIn("2. 价格/活动：2件", message)
+        self.assertIn("【本次确认】1件（#12342 等）", message)
         self.assertIn("点开通知查看原帖", message)
         self.assertNotIn("https://bakusai.com", message)
         assert_safe_data({"title": title, "message": message})
@@ -52,14 +61,14 @@ class NotifierTests(unittest.TestCase):
 
         send_bark_notification(
             bark_key="abc",
-            title="神戸妻 新レス1件 #1",
+            title="神戸妻 新レス1件 / 今日1件",
             message="新增 1 件",
             link_url="https://bakusai.com/thread/example/",
             opener=fake_urlopen,
         )
 
         decoded_url = unquote(urls[0])
-        self.assertIn("https://api.day.app/abc/神戸妻 新レス1件 #1/新增 1 件", decoded_url)
+        self.assertIn("https://api.day.app/abc/神戸妻 新レス1件 / 今日1件/新增 1 件", decoded_url)
         self.assertIn("url=https://bakusai.com/thread/example/", decoded_url)
 
     def test_normalize_bark_key_accepts_full_api_url(self):

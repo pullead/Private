@@ -23,14 +23,17 @@ TOPIC_LABELS = {
 
 
 def build_bark_message(summary: dict, thread_url: str, checked_at: str) -> tuple[str, str]:
-    new_count = int(summary.get("new_count", 0) or 0)
+    interval_count = int(summary.get("interval_new_count", summary.get("new_count", 0)) or 0)
+    day_count = int(summary.get("day_new_count", interval_count) or 0)
     latest_res_no = int(summary.get("latest_res_no", 0) or 0)
-    title = f"神戸妻 新レス{new_count}件 #{latest_res_no}"
+    interval_range = summary.get("interval_res_range", summary.get("res_range", "")) or "-"
+    title = f"神戸妻 新レス{interval_count}件 / 今日{day_count}件"
     message = "\n".join(
         [
-            f"范围：{summary.get('res_range', '') or '-'}",
-            f"主题：{_format_topics(summary.get('topics', {}))}",
-            f"确认：{_format_manual(summary.get('topics', {}), summary.get('manual_check_ranges', []))}",
+            f"最新：#{latest_res_no}　范围：{interval_range}",
+            "【今日主题】",
+            _format_topics(summary.get("topics", {})),
+            f"【本次确认】{_format_manual(summary.get('interval_topics', summary.get('topics', {})), summary.get('manual_check_ranges', []))}",
             "点开通知查看原帖",
         ]
     )
@@ -84,7 +87,11 @@ def _format_topics(topics: dict) -> str:
     ranked.sort(key=lambda item: item[1], reverse=True)
     if not ranked:
         return "无明显店铺级主题"
-    return "、".join(f"{TOPIC_LABELS[topic]}({count})" for topic, count in ranked[:3])
+
+    lines = []
+    for index, (topic, count) in enumerate(ranked[:4], start=1):
+        lines.append(f"{index}. {TOPIC_LABELS[topic]}：{count}件")
+    return "\n".join(lines)
 
 
 def _format_manual(topics: dict, ranges: list[str]) -> str:
