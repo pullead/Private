@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 from urllib.request import Request, urlopen
 
 from safety import assert_safe_data
@@ -50,13 +50,28 @@ def send_bark_notification(
     timeout: float = 10.0,
     opener: Callable = urlopen,
 ) -> None:
-    if not bark_key:
+    normalized_key = normalize_bark_key(bark_key)
+    if not normalized_key:
         return
     assert_safe_data({"title": title, "message": message})
     url = (
-        f"https://api.day.app/{quote(bark_key, safe='')}/"
+        f"https://api.day.app/{quote(normalized_key, safe='')}/"
         f"{quote(title, safe='')}/{quote(message, safe='')}"
     )
     request = Request(url, headers={"User-Agent": "BakusaiSafeSummary/1.0"})
     with opener(request, timeout=timeout) as response:
         response.read()
+
+
+def normalize_bark_key(value: str) -> str:
+    cleaned = value.strip()
+    if not cleaned:
+        return ""
+    if "://" not in cleaned:
+        return cleaned.strip("/")
+
+    parsed = urlparse(cleaned)
+    parts = [part for part in parsed.path.split("/") if part]
+    if parsed.netloc.endswith("day.app") and parts:
+        return parts[0]
+    return cleaned

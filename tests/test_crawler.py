@@ -134,6 +134,27 @@ class CrawlerTests(unittest.TestCase):
             self.assertEqual(saved["threads"]["main"]["new_count_today"], 2)
             self.assertEqual(summary["new_count"], 2)
 
+    def test_notification_failure_does_not_fail_monitor_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = Path(tmp) / "state.json"
+            summary_dir = Path(tmp) / "daily_summary"
+
+            result = run_once(
+                Config(
+                    target_url="https://bakusai.com/thread/example/",
+                    bark_key="bad-key",
+                    state_file=str(state_path),
+                    summary_dir=str(summary_dir),
+                    request_timeout=1,
+                ),
+                fetcher=lambda url, timeout: HTML,
+                notifier=lambda title, message: (_ for _ in ()).throw(RuntimeError("bad request")),
+                now_provider=lambda: "2026-06-16T12:00:00+09:00",
+            )
+
+            self.assertEqual(result, 0)
+            self.assertTrue((summary_dir / "2026-06-16.json").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

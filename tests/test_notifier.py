@@ -1,7 +1,7 @@
 import unittest
 from urllib.parse import unquote
 
-from notifier import build_bark_message, send_bark_notification
+from notifier import build_bark_message, normalize_bark_key, send_bark_notification
 from safety import assert_safe_data
 
 
@@ -54,6 +54,13 @@ class NotifierTests(unittest.TestCase):
 
         decoded_url = unquote(urls[0])
         self.assertIn("https://api.day.app/abc/论坛线程每日摘要/新增 1 件", decoded_url)
+
+    def test_normalize_bark_key_accepts_full_api_url(self):
+        self.assertEqual(
+            normalize_bark_key("https://api.day.app/abc123/测试"),
+            "abc123",
+        )
+        self.assertEqual(normalize_bark_key("abc123"), "abc123")
 
 
 if __name__ == "__main__":

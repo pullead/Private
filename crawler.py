@@ -60,10 +60,13 @@ def run_once(
     assert summary is not None
     _save_summary(config.summary_dir, summary_date, summary)
     title, message = build_bark_message(summary, config.target_url, checked_at)
-    if notifier:
-        notifier(title, message)
-    else:
-        send_bark_notification(config.bark_key, title, message)
+    try:
+        if notifier:
+            notifier(title, message)
+        else:
+            send_bark_notification(config.bark_key, title, message)
+    except Exception as exc:
+        print(f"[WARN] Notification failed: {exc}", file=sys.stderr)
     return 0
 
 
