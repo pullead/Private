@@ -6,7 +6,7 @@ from safety import assert_safe_data
 
 
 class NotifierTests(unittest.TestCase):
-    def test_build_bark_message_contains_readable_daily_summary(self):
+    def test_build_bark_message_contains_human_readable_topic_summary(self):
         title, message = build_bark_message(
             {
                 "summary_date": "2026-06-16",
@@ -33,10 +33,11 @@ class NotifierTests(unittest.TestCase):
 
         self.assertEqual(title, "神戸妻 新レス3件 / 今日8件")
         self.assertIn("最新：#12342　范围：#12340-#12342", message)
-        self.assertIn("【今日主题】", message)
-        self.assertIn("1. 预约/等待：4件", message)
-        self.assertIn("2. 价格/活动：2件", message)
-        self.assertIn("【本次确认】1件（#12342 等）", message)
+        self.assertIn("【讨论概括】", message)
+        self.assertIn("预约、空き或等待情况被提到", message)
+        self.assertIn("有人讨论价格、优惠、活动或费用变化", message)
+        self.assertIn("店铺规则、支付方式或注意事项相关内容较多", message)
+        self.assertIn("【本次确认】1件内容无法安全概括：#12342 等", message)
         self.assertIn("点开通知查看原帖", message)
         self.assertNotIn("https://bakusai.com", message)
         assert_safe_data({"title": title, "message": message})

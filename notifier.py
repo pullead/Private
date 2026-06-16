@@ -21,18 +21,35 @@ TOPIC_LABELS = {
     "complaint_anomaly": "投诉/异常",
 }
 
+TOPIC_SUMMARIES = {
+    "reservation_wait": "预约、空き或等待情况被提到，可能需要打开原帖确认可约状态。",
+    "pricing_campaign": "有人讨论价格、优惠、活动或费用变化。",
+    "business_hours": "营业时间、休业或开闭店安排有相关讨论。",
+    "schedule_change": "排班或出勤安排被提到，但不展开具体个人信息。",
+    "reception_system": "受付、电话、网页预约或店铺系统流程被讨论。",
+    "shop_rules": "店铺规则、支付方式或注意事项相关内容较多。",
+    "location_access": "位置、交通、停车或到店路线被提到。",
+    "hygiene_environment": "店内环境、卫生或设施状态有相关讨论。",
+    "crowding_popularity": "整体热度、拥挤程度或人气变化被提到。",
+    "notice_announcement": "公告、广告或官方更新信息被讨论。",
+    "complaint_anomaly": "出现投诉、异常或疑似问题反馈，建议人工查看。",
+}
+
 
 def build_bark_message(summary: dict, thread_url: str, checked_at: str) -> tuple[str, str]:
     interval_count = int(summary.get("interval_new_count", summary.get("new_count", 0)) or 0)
     day_count = int(summary.get("day_new_count", interval_count) or 0)
     latest_res_no = int(summary.get("latest_res_no", 0) or 0)
     interval_range = summary.get("interval_res_range", summary.get("res_range", "")) or "-"
+
     title = f"神戸妻 新レス{interval_count}件 / 今日{day_count}件"
     message = "\n".join(
         [
             f"最新：#{latest_res_no}　范围：{interval_range}",
-            "【今日主题】",
-            _format_topics(summary.get("topics", {})),
+            "",
+            "【讨论概括】",
+            _format_topic_summary(summary.get("topics", {})),
+            "",
             f"【本次确认】{_format_manual(summary.get('interval_topics', summary.get('topics', {})), summary.get('manual_check_ranges', []))}",
             "点开通知查看原帖",
         ]
@@ -78,7 +95,7 @@ def normalize_bark_key(value: str) -> str:
     return cleaned
 
 
-def _format_topics(topics: dict) -> str:
+def _format_topic_summary(topics: dict) -> str:
     ranked = [
         (topic, int(count))
         for topic, count in topics.items()
@@ -86,11 +103,11 @@ def _format_topics(topics: dict) -> str:
     ]
     ranked.sort(key=lambda item: item[1], reverse=True)
     if not ranked:
-        return "无明显店铺级主题"
+        return "没有识别到明显的店铺级讨论主题。"
 
     lines = []
     for index, (topic, count) in enumerate(ranked[:4], start=1):
-        lines.append(f"{index}. {TOPIC_LABELS[topic]}：{count}件")
+        lines.append(f"{index}. {TOPIC_LABELS[topic]}（{count}件）：{TOPIC_SUMMARIES[topic]}")
     return "\n".join(lines)
 
 
@@ -99,7 +116,7 @@ def _format_manual(topics: dict, ranges: list[str]) -> str:
     if count <= 0:
         return "无"
     if not ranges:
-        return f"{count}件"
+        return f"{count}件内容无法安全概括，建议人工查看。"
     if len(ranges) == 1:
-        return f"{count}件（{ranges[0]}）"
-    return f"{count}件（{ranges[0]} 等）"
+        return f"{count}件内容无法安全概括：{ranges[0]}"
+    return f"{count}件内容无法安全概括：{ranges[0]} 等"
