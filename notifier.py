@@ -49,6 +49,20 @@ TOPIC_DETAILS = {
     "complaint_anomaly": "内容不适合自动展开，建议打开原帖核对。",
 }
 
+TOPIC_KEYWORDS = {
+    "reservation_wait": ("预约", "空き", "等待", "混杂", "可约", "到店"),
+    "pricing_campaign": ("价格", "优惠", "活动", "套餐", "费用", "规则"),
+    "business_hours": ("营业", "休业", "时间", "开店", "闭店", "节假日"),
+    "schedule_change": ("排班", "出勤", "变更", "休息", "安排", "确认"),
+    "reception_system": ("受付", "电话", "网站", "预约流程", "响应", "系统"),
+    "shop_rules": ("规则", "支付", "注意事项", "流程", "确认", "到店"),
+    "location_access": ("位置", "交通", "车站", "停车", "路线", "周边"),
+    "hygiene_environment": ("环境", "卫生", "设施", "清洁", "房间", "体验"),
+    "crowding_popularity": ("热度", "拥挤", "人气", "关注", "排队", "活跃"),
+    "notice_announcement": ("公告", "广告", "官方", "更新", "通知", "页面"),
+    "complaint_anomaly": ("异常", "投诉", "问题", "反馈", "确认", "注意"),
+}
+
 
 def build_bark_message(summary: dict, thread_url: str, checked_at: str) -> tuple[str, str]:
     interval_count = int(summary.get("interval_new_count", summary.get("new_count", 0)) or 0)
@@ -58,13 +72,13 @@ def build_bark_message(summary: dict, thread_url: str, checked_at: str) -> tuple
     title = f"今日论坛速览｜神戸妻｜新{interval_count} / 今日{day_count}"
     message = "\n".join(
         [
-            f"6月16日｜最新 #{latest_res_no}｜{interval_range}",
+            f"{_format_date(summary.get('summary_date', ''))}｜最新 #{latest_res_no}｜{interval_range}",
             "",
-            "【热帖速览】",
-            _format_cards(summary.get("topics", {}), limit=2),
+            "【今日三句话】",
+            _format_overview(summary),
             "",
-            "【新帖速递】",
-            _format_cards(summary.get("interval_topics", summary.get("topics", {})), limit=2),
+            "【帖子摘要卡片】",
+            _format_cards(summary.get("topics", {}), interval_range, limit=3),
             "",
             f"【人工确认】{_format_manual(summary.get('interval_topics', summary.get('topics', {})), summary.get('manual_check_ranges', []))}",
             "点开通知查看原帖",
@@ -111,7 +125,32 @@ def normalize_bark_key(value: str) -> str:
     return cleaned
 
 
-def _format_cards(topics: dict, limit: int) -> str:
+def _format_overview(summary: dict) -> str:
+    topics = summary.get("topics", {})
+    ranked = _rank_topics(topics)
+    interval_count = int(summary.get("interval_new_count", summary.get("new_count", 0)) or 0)
+    day_count = int(summary.get("day_new_count", interval_count) or 0)
+    if not ranked:
+        return "\n".join(
+            [
+                f"1. 本次新增 {interval_count} 件，今日累计 {day_count} 件。",
+                "2. 暂时没有识别到明显的店铺级讨论主线。",
+                "3. 建议点开原帖查看最新レス上下文。",
+            ]
+        )
+
+    top_labels = "、".join(TOPIC_LABELS[topic] for topic, _ in ranked[:3])
+    manual_count = int(topics.get("needs_manual_check", 0) or 0)
+    return "\n".join(
+        [
+            f"1. 本次新增 {interval_count} 件，今日累计 {day_count} 件。",
+            f"2. 今天讨论主线集中在：{top_labels}。",
+            f"3. 其中 {manual_count} 件不适合自动展开，建议作为人工确认入口。",
+        ]
+    )
+
+
+def _format_cards(topics: dict, res_range: str, limit: int) -> str:
     ranked = _rank_topics(topics)
     if not ranked:
         return "暂无可安全概括的店铺级主题。"
@@ -121,13 +160,14 @@ def _format_cards(topics: dict, limit: int) -> str:
         cards.append(
             "\n".join(
                 [
-                    f"- {TOPIC_HEADLINES[topic]}",
-                    f"  标签：{TOPIC_LABELS[topic]}｜{count}件",
-                    f"  要点：{TOPIC_DETAILS[topic]}",
+                    f"[{_topic_badge(topic)}][店铺] {TOPIC_HEADLINES[topic]}",
+                    f"关键词：{' / '.join(TOPIC_KEYWORDS[topic])}",
+                    f"摘要：{_topic_summary_sentence(topic)}",
+                    f"数据：{count}件｜{res_range}｜情绪：{_infer_mood(topic, count)}",
                 ]
             )
         )
-    return "\n".join(cards)
+    return "\n\n".join(cards)
 
 
 def _rank_topics(topics: dict) -> list[tuple[str, int]]:
@@ -138,6 +178,39 @@ def _rank_topics(topics: dict) -> list[tuple[str, int]]:
     ]
     ranked.sort(key=lambda item: item[1], reverse=True)
     return ranked
+
+
+def _topic_badge(topic: str) -> str:
+    if topic in {"crowding_popularity", "complaint_anomaly"}:
+        return "热帖"
+    return "新帖"
+
+
+def _topic_summary_sentence(topic: str) -> str:
+    return (
+        f"发帖重点偏向{TOPIC_LABELS[topic]}。"
+        f"大家主要围绕{TOPIC_DETAILS[topic]}"
+        "目前更适合先看原帖确认细节，再决定是否继续关注。"
+    )
+
+
+def _infer_mood(topic: str, count: int) -> str:
+    if topic == "complaint_anomaly":
+        return "分歧"
+    if topic in {"notice_announcement", "pricing_campaign"}:
+        return "积极"
+    if count >= 3:
+        return "讨论中"
+    return "观望"
+
+
+def _format_date(summary_date: str) -> str:
+    if not summary_date:
+        return "今日"
+    parts = summary_date.split("-")
+    if len(parts) != 3:
+        return summary_date
+    return f"{int(parts[1])}月{int(parts[2])}日"
 
 
 def _format_manual(topics: dict, ranges: list[str]) -> str:
