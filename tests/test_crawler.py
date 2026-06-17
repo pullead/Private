@@ -56,7 +56,7 @@ class CrawlerTests(unittest.TestCase):
             self.assertEqual(saved["threads"]["main"]["thread_url"], "")
             self.assertEqual(summary["interval_new_count"], 2)
             self.assertEqual(summary["day_new_count"], 2)
-            self.assertEqual(len(notifications), 0)
+            self.assertEqual(len(notifications), 1)
             self.assertFalse((Path(tmp) / "raw.html").exists())
             self.assertFalse((Path(tmp) / "posts.json").exists())
 
@@ -117,7 +117,7 @@ class CrawlerTests(unittest.TestCase):
             self.assertEqual(summary["topics"]["shop_rules"], 1)
             self.assertIn("#12337-#12339", summary["day_res_ranges"])
             self.assertIn("#12340-#12341", summary["day_res_ranges"])
-            self.assertEqual(len(notifications), 0)
+            self.assertEqual(len(notifications), 1)
 
     def test_run_once_sends_hot_alert_when_interval_reaches_threshold(self):
         html = """
