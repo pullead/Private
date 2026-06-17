@@ -119,6 +119,109 @@ class CrawlerTests(unittest.TestCase):
             self.assertIn("#12340-#12341", summary["day_res_ranges"])
             self.assertEqual(len(notifications), 1)
 
+    def test_run_once_sends_hot_alert_when_interval_reaches_threshold(self):
+        html = """
+        <article><span>#12340</span><time>2026-06-16 09:00</time><p>予約の待ち時間。</p></article>
+        <article><span>#12341</span><time>2026-06-16 09:30</time><p>料金キャンペーン。</p></article>
+        <article><span>#12342</span><time>2026-06-16 09:40</time><p>ルール確認。</p></article>
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = Path(tmp) / "state.json"
+            summary_dir = Path(tmp) / "daily_summary"
+            state_path.write_text(
+                json.dumps(
+                    {
+                        "threads": {
+                            "main": {
+                                "thread_url": "",
+                                "last_seen_res_no": 12339,
+                                "last_seen_hash": "",
+                                "last_checked_at": "",
+                                "new_count_today": 0,
+                            }
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            notifications = []
+
+            result = run_once(
+                Config(
+                    target_url="https://bakusai.com/thread/example/",
+                    bark_key="abc",
+                    state_file=str(state_path),
+                    summary_dir=str(summary_dir),
+                    request_timeout=1,
+                    hot_alert_threshold=2,
+                    daily_digest_hour=20,
+                ),
+                fetcher=lambda url, timeout: html,
+                notifier=lambda title, message: notifications.append((title, message)),
+                now_provider=lambda: "2026-06-16T12:00:00+09:00",
+            )
+
+            self.assertEqual(result, 0)
+            self.assertEqual(len(notifications), 1)
+            self.assertIn("论坛热了", notifications[0][0])
+
+    def test_run_once_sends_daily_digest_after_digest_hour_once(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = Path(tmp) / "state.json"
+            summary_dir = Path(tmp) / "daily_summary"
+            summary_dir.mkdir()
+            state_path.write_text(
+                json.dumps(
+                    {
+                        "threads": {
+                            "main": {
+                                "thread_url": "",
+                                "last_seen_res_no": 12341,
+                                "last_seen_hash": "",
+                                "last_checked_at": "",
+                                "new_count_today": 2,
+                                "last_daily_digest_date": "",
+                            }
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (summary_dir / "2026-06-16.json").write_text(
+                json.dumps(
+                    {
+                        "summary_date": "2026-06-16",
+                        "latest_res_no": 12341,
+                        "day_new_count": 2,
+                        "topics": {"reservation_wait": 1, "shop_rules": 1},
+                        "interval_topics": {"shop_rules": 1},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            notifications = []
+
+            result = run_once(
+                Config(
+                    target_url="https://bakusai.com/thread/example/",
+                    bark_key="abc",
+                    state_file=str(state_path),
+                    summary_dir=str(summary_dir),
+                    request_timeout=1,
+                    hot_alert_threshold=2,
+                    daily_digest_hour=20,
+                ),
+                fetcher=lambda url, timeout: HTML,
+                notifier=lambda title, message: notifications.append((title, message)),
+                now_provider=lambda: "2026-06-16T20:05:00+09:00",
+            )
+
+            saved = json.loads(state_path.read_text(encoding="utf-8"))
+            self.assertEqual(result, 0)
+            self.assertEqual(len(notifications), 1)
+            self.assertIn("论坛日报", notifications[0][0])
+            self.assertEqual(saved["threads"]["main"]["last_daily_digest_date"], "2026-06-16")
+
     def test_run_once_without_new_posts_does_not_notify(self):
         with tempfile.TemporaryDirectory() as tmp:
             state_path = Path(tmp) / "state.json"

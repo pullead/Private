@@ -18,6 +18,7 @@ class ThreadState:
     error_count: int = 0
     last_success_at: str = ""
     last_error_at: str = ""
+    last_daily_digest_date: str = ""
 
 
 def load_state(path: str | Path) -> dict:

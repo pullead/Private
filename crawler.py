@@ -8,10 +8,14 @@ from typing import Callable
 from urllib.request import Request, urlopen
 
 from config import Config, load_config
-from notifier import build_bark_message, send_bark_notification
+from notifier import (
+    build_daily_digest_message,
+    build_hot_alert_message,
+    send_bark_notification,
+)
 from parser import parse_thread_metadata, summarize_shop_topics
 from safety import assert_safe_data
-from state import ThreadState, load_state, update_thread_state
+from state import ThreadState, load_state, save_state, update_thread_state
 
 
 JST = timezone(timedelta(hours=9))
@@ -35,6 +39,7 @@ def run_once(
     state_data = load_state(config.state_file)
     previous = state_data.get("threads", {}).get("main", {})
     previous_res_no = int(previous.get("last_seen_res_no", 0) or 0)
+    previous_daily_date = str(previous.get("last_daily_digest_date", "") or "")
     is_first_run = not bool(previous)
 
     html = _fetch_with_single_retry(fetcher, config.target_url, config.request_timeout)
@@ -50,6 +55,14 @@ def run_once(
     )
     interval_count = int(interval_summary["new_count"]) if interval_summary else 0
     day_count = int(daily_summary["day_new_count"]) if daily_summary else 0
+    should_send_daily = _should_send_daily_digest(
+        checked_at, summary_date, previous_daily_date, config.daily_digest_hour
+    )
+    if should_send_daily and daily_summary is None:
+        daily_summary = _load_existing_summary(Path(config.summary_dir) / f"{summary_date}.json")
+    if daily_summary:
+        day_count = int(daily_summary.get("day_new_count", daily_summary.get("new_count", 0)) or 0)
+    daily_sent = False
 
     thread_state = ThreadState(
         thread_url="",
@@ -58,24 +71,45 @@ def run_once(
         last_checked_at=checked_at,
         new_count_today=day_count,
         last_success_at=checked_at,
+        last_daily_digest_date=previous_daily_date,
     )
     update_thread_state(config.state_file, "main", thread_state)
 
-    if interval_count == 0:
+    if interval_count == 0 and not (should_send_daily and daily_summary):
         return 0
 
-    assert daily_summary is not None
-    _save_summary(config.summary_dir, summary_date, daily_summary)
-    title, message = build_bark_message(daily_summary, config.target_url, checked_at)
+    if daily_summary:
+        _save_summary(config.summary_dir, summary_date, daily_summary)
     try:
-        if notifier:
-            notifier(title, message)
-        else:
-            send_bark_notification(
-                config.bark_key, title, message, link_url=config.target_url
+        if interval_count >= config.hot_alert_threshold and daily_summary:
+            title, message = build_hot_alert_message(
+                daily_summary, config.target_url, checked_at
             )
+            _notify(
+                config,
+                title,
+                message,
+                notifier,
+                group="hot-alert",
+                level="timeSensitive",
+            )
+        if should_send_daily and daily_summary:
+            title, message = build_daily_digest_message(
+                daily_summary, config.target_url, checked_at
+            )
+            _notify(
+                config,
+                title,
+                message,
+                notifier,
+                group="daily-digest",
+                level="passive",
+            )
+            daily_sent = True
     except Exception as exc:
         print(f"[WARN] Notification failed: {exc}", file=sys.stderr)
+    if daily_sent:
+        _mark_daily_digest_sent(config.state_file, summary_date)
     return 0
 
 
@@ -147,6 +181,53 @@ def _append_unique(items: list[str], item: str) -> list[str]:
     if item and item not in result:
         result.append(item)
     return result
+
+
+def _notify(
+    config: Config,
+    title: str,
+    message: str,
+    notifier: Callable[[str, str], None] | None,
+    group: str,
+    level: str,
+) -> None:
+    if notifier:
+        notifier(title, message)
+        return
+    send_bark_notification(
+        config.bark_key,
+        title,
+        message,
+        link_url=config.target_url,
+        group=group,
+        level=level,
+    )
+
+
+def _should_send_daily_digest(
+    checked_at: str, summary_date: str, previous_daily_date: str, digest_hour: int
+) -> bool:
+    if previous_daily_date == summary_date:
+        return False
+    hour = _parse_iso_hour(checked_at)
+    return hour >= digest_hour
+
+
+def _parse_iso_hour(value: str) -> int:
+    try:
+        return datetime.fromisoformat(value).hour
+    except ValueError:
+        return 0
+
+
+def _mark_daily_digest_sent(state_file: str, summary_date: str) -> None:
+    data = load_state(state_file)
+    thread = data.get("threads", {}).get("main", {})
+    if not thread:
+        return
+    thread["last_daily_digest_date"] = summary_date
+    assert_safe_data(data)
+    save_state(state_file, data)
 
 
 if __name__ == "__main__":

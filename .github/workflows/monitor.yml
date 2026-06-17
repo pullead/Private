@@ -35,6 +35,8 @@ jobs:
           STATE_FILE: state.json
           SUMMARY_DIR: daily_summary
           REQUEST_TIMEOUT: "15"
+          HOT_ALERT_THRESHOLD: "2"
+          DAILY_DIGEST_HOUR: "20"
         run: python crawler.py
 
       - name: Persist safe monitor state

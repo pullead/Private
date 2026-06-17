@@ -11,6 +11,8 @@ class Config:
     state_file: str = "state.json"
     summary_dir: str = "daily_summary"
     request_timeout: float = 15.0
+    hot_alert_threshold: int = 2
+    daily_digest_hour: int = 20
 
 
 def load_config() -> Config:
@@ -31,4 +33,6 @@ def load_config() -> Config:
         summary_dir=os.environ.get("SUMMARY_DIR", "daily_summary").strip()
         or "daily_summary",
         request_timeout=request_timeout,
+        hot_alert_threshold=int(os.environ.get("HOT_ALERT_THRESHOLD", "2")),
+        daily_digest_hour=int(os.environ.get("DAILY_DIGEST_HOUR", "20")),
     )

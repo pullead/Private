@@ -1,7 +1,13 @@
 import unittest
 from urllib.parse import unquote
 
-from notifier import build_bark_message, normalize_bark_key, send_bark_notification
+from notifier import (
+    build_daily_digest_message,
+    build_hot_alert_message,
+    build_bark_message,
+    normalize_bark_key,
+    send_bark_notification,
+)
 from safety import assert_safe_data
 
 
@@ -79,6 +85,48 @@ class NotifierTests(unittest.TestCase):
         decoded_url = unquote(urls[0])
         self.assertIn("https://api.day.app/abc/本日の掲示板速報｜神戸妻｜新1 / 今日1/新增 1 件", decoded_url)
         self.assertIn("url=https://bakusai.com/thread/example/", decoded_url)
+
+    def test_daily_digest_message_matches_digest_style(self):
+        title, message = build_daily_digest_message(
+            {
+                "summary_date": "2026-06-16",
+                "day_new_count": 23,
+                "latest_res_no": 471,
+                "topics": {
+                    "reservation_wait": 7,
+                    "pricing_campaign": 4,
+                    "shop_rules": 3,
+                },
+                "interval_topics": {"shop_rules": 2},
+            },
+            "https://bakusai.com/thread/example/",
+            "2026-06-16T20:00:00+09:00",
+        )
+
+        self.assertIn("📋 论坛日报 · 6月16日｜今日 23 レス · 3 热议", title)
+        self.assertIn("🔥 熱い話題 / 热帖精选", message)
+        self.assertIn("1. 予約・待ち時間 / 预约等待", message)
+        self.assertIn("📌 新着要点 / 新帖速递", message)
+        self.assertIn("──────────────", message)
+        assert_safe_data({"title": title, "message": message})
+
+    def test_hot_alert_message_matches_alert_style(self):
+        title, message = build_hot_alert_message(
+            {
+                "interval_new_count": 3,
+                "latest_res_no": 471,
+                "interval_res_range": "#469-#471",
+                "interval_topics": {"reservation_wait": 3, "shop_rules": 1},
+            },
+            "https://bakusai.com/thread/example/",
+            "2026-06-16T12:00:00+09:00",
+        )
+
+        self.assertIn("🔥 论坛热了｜「预约等待」突破3レス", title)
+        self.assertIn("核心争议 / 主な見方：", message)
+        self.assertIn("目前可安全复述：", message)
+        self.assertIn("──────────────", message)
+        assert_safe_data({"title": title, "message": message})
 
     def test_normalize_bark_key_accepts_full_api_url(self):
         self.assertEqual(

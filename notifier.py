@@ -121,12 +121,60 @@ def build_bark_message(summary: dict, thread_url: str, checked_at: str) -> tuple
     return title, message
 
 
+def build_daily_digest_message(summary: dict, thread_url: str, checked_at: str) -> tuple[str, str]:
+    day_count = int(summary.get("day_new_count", summary.get("new_count", 0)) or 0)
+    latest_res_no = int(summary.get("latest_res_no", 0) or 0)
+    hot_topics = _rank_topics(summary.get("topics", {}))[:3]
+    title = f"📋 论坛日报 · {_format_date(summary.get('summary_date', ''))}｜今日 {day_count} レス · {len(hot_topics)} 热议"
+    body = "\n".join(
+        [
+            "🔥 熱い話題 / 热帖精选",
+            _format_daily_hot_topics(hot_topics, summary),
+            "",
+            "📌 新着要点 / 新帖速递",
+            _format_daily_new_topics(summary.get("interval_topics", summary.get("topics", {}))),
+            "",
+            "──────────────",
+            f"最新 #{latest_res_no}｜通知を開くと元スレへ / 点击查看完整日报 →",
+        ]
+    )
+    assert_safe_data({"title": title, "message": body})
+    return title, body
+
+
+def build_hot_alert_message(summary: dict, thread_url: str, checked_at: str) -> tuple[str, str]:
+    interval_count = int(summary.get("interval_new_count", summary.get("new_count", 0)) or 0)
+    latest_res_no = int(summary.get("latest_res_no", 0) or 0)
+    top_topics = _rank_topics(summary.get("interval_topics", summary.get("topics", {})))[:3]
+    topic_name_jp, topic_name_cn = _topic_names(top_topics[0][0]) if top_topics else ("スレ", "帖子")
+    title = f"🔥 论坛热了｜「{topic_name_cn}」突破{interval_count}レス"
+    body = "\n".join(
+        [
+            f"対象：神戸妻 · 店舗スレ · 最新 #{latest_res_no}",
+            f"范围：{summary.get('interval_res_range', '-')}",
+            "",
+            "核心争议 / 主な見方：",
+            _format_hot_viewpoints(top_topics),
+            "",
+            "目前可安全复述：",
+            _format_hot_takeaway(top_topics),
+            "",
+            "──────────────",
+            "通知を開くと元スレへ / 点开查看原帖",
+        ]
+    )
+    assert_safe_data({"title": title, "message": body})
+    return title, body
+
+
 def send_bark_notification(
     bark_key: str,
     title: str,
     message: str,
     timeout: float = 10.0,
     link_url: str = "",
+    group: str = "",
+    level: str = "",
     opener: Callable = urlopen,
 ) -> None:
     normalized_key = normalize_bark_key(bark_key)
@@ -137,8 +185,15 @@ def send_bark_notification(
         f"https://api.day.app/{quote(normalized_key, safe='')}/"
         f"{quote(title, safe='')}/{quote(message, safe='')}"
     )
+    params = {}
     if link_url:
-        url += "?" + urlencode({"url": link_url})
+        params["url"] = link_url
+    if group:
+        params["group"] = group
+    if level:
+        params["level"] = level
+    if params:
+        url += "?" + urlencode(params)
     request = Request(url, headers={"User-Agent": "BakusaiSafeSummary/1.0"})
     with opener(request, timeout=timeout) as response:
         response.read()
@@ -216,6 +271,64 @@ def _format_cards(topics: dict, res_range: str, limit: int) -> str:
             )
         )
     return "\n\n".join(cards)
+
+
+def _format_daily_hot_topics(ranked: list[tuple[str, int]], summary: dict) -> str:
+    if not ranked:
+        return "本日は目立った熱議テーマなし / 今天没有明显热议主题"
+    lines = []
+    for index, (topic, count) in enumerate(ranked, start=1):
+        jp_name, cn_name = _topic_names(topic)
+        mood_jp, mood_cn = _infer_mood(topic, count)
+        lines.append(
+            "\n".join(
+                [
+                    f"{index}. {jp_name} / {cn_name}",
+                    f"   主流：{_daily_mainstream(topic)}",
+                    f"   {count}レス · {mood_jp} / {mood_cn}",
+                ]
+            )
+        )
+    return "\n".join(lines)
+
+
+def _format_daily_new_topics(topics: dict) -> str:
+    ranked = _rank_topics(topics)[:2]
+    if not ranked:
+        return "新着で安全に要約できるテーマなし / 暂无可安全概括的新主题"
+    lines = []
+    for offset, (topic, _) in enumerate(ranked, start=1):
+        jp_name, cn_name = _topic_names(topic)
+        lines.append(f"{offset}. {jp_name} / {cn_name}")
+    return "\n".join(lines)
+
+
+def _format_hot_viewpoints(ranked: list[tuple[str, int]]) -> str:
+    if not ranked:
+        return "観望 — 目立った店铺级主题なし\n观望 — 暂无明显店铺级主题"
+    lines = []
+    for topic, _ in ranked:
+        jp_name, cn_name = _topic_names(topic)
+        lines.append(f"{jp_name} — {TOPIC_DETAILS[topic][0]}")
+        lines.append(f"{cn_name} — {TOPIC_DETAILS[topic][1]}")
+    return "\n".join(lines)
+
+
+def _format_hot_takeaway(ranked: list[tuple[str, int]]) -> str:
+    if not ranked:
+        return "「まず元スレで最新状況を確認するのがよさそうです」\n「建议先打开原帖确认最新情况」"
+    topic = ranked[0][0]
+    jp_name, cn_name = _topic_names(topic)
+    return f"「{jp_name} が中心。詳細は元スレ確認が前提です」\n「{cn_name} 是中心，细节建议以原帖为准」"
+
+
+def _daily_mainstream(topic: str) -> str:
+    jp_name, cn_name = _topic_names(topic)
+    return f"{jp_name}中心 / {cn_name}为主"
+
+
+def _topic_names(topic: str) -> tuple[str, str]:
+    return TOPIC_LABELS.get(topic, ("その他", "其他"))
 
 
 def _rank_topics(topics: dict) -> list[tuple[str, int]]:
