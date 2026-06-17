@@ -40,6 +40,7 @@ def run_once(
     previous = state_data.get("threads", {}).get("main", {})
     previous_res_no = int(previous.get("last_seen_res_no", 0) or 0)
     previous_daily_date = str(previous.get("last_daily_digest_date", "") or "")
+    previous_morning_date = str(previous.get("last_morning_digest_date", "") or "")
     is_first_run = not bool(previous)
 
     html = _fetch_with_single_retry(fetcher, config.target_url, config.request_timeout)
@@ -72,6 +73,7 @@ def run_once(
         new_count_today=day_count,
         last_success_at=checked_at,
         last_daily_digest_date=previous_daily_date,
+        last_morning_digest_date=previous_morning_date,
     )
     update_thread_state(config.state_file, "main", thread_state)
 
@@ -80,20 +82,16 @@ def run_once(
 
     if daily_summary:
         _save_summary(config.summary_dir, summary_date, daily_summary)
+    hot_level = _select_hot_alert_level(
+        checked_at,
+        interval_count,
+        config.hot_alert_threshold,
+        previous_morning_date,
+        summary_date,
+    )
+    morning_sent = False
     try:
-        if interval_count >= config.hot_alert_threshold and daily_summary:
-            title, message = build_hot_alert_message(
-                daily_summary, config.target_url, checked_at
-            )
-            _notify(
-                config,
-                title,
-                message,
-                notifier,
-                group="hot-alert",
-                level="timeSensitive",
-            )
-        if should_send_daily and daily_summary:
+        if should_send_daily and daily_summary and day_count > 0:
             title, message = build_daily_digest_message(
                 daily_summary, config.target_url, checked_at
             )
@@ -106,10 +104,25 @@ def run_once(
                 level="passive",
             )
             daily_sent = True
+        elif hot_level and daily_summary:
+            title, message = build_hot_alert_message(
+                daily_summary, config.target_url, checked_at
+            )
+            _notify(
+                config,
+                title,
+                message,
+                notifier,
+                group="hot-alert",
+                level=hot_level,
+            )
+            morning_sent = _is_morning_window(checked_at)
     except Exception as exc:
         print(f"[WARN] Notification failed: {exc}", file=sys.stderr)
     if daily_sent:
         _mark_daily_digest_sent(config.state_file, summary_date)
+    if morning_sent:
+        _mark_morning_digest_sent(config.state_file, summary_date)
     return 0
 
 
@@ -220,12 +233,48 @@ def _parse_iso_hour(value: str) -> int:
         return 0
 
 
+def _select_hot_alert_level(
+    checked_at: str,
+    interval_count: int,
+    threshold: int,
+    previous_morning_date: str,
+    summary_date: str,
+) -> str:
+    if interval_count < threshold:
+        return ""
+    hour = _parse_iso_hour(checked_at)
+    if 0 <= hour < 7:
+        return ""
+    if 7 <= hour < 9:
+        if previous_morning_date == summary_date:
+            return ""
+        return "passive"
+    if 22 <= hour < 24:
+        return "passive"
+    return "timeSensitive"
+
+
+def _is_morning_window(checked_at: str) -> bool:
+    hour = _parse_iso_hour(checked_at)
+    return 7 <= hour < 9
+
+
 def _mark_daily_digest_sent(state_file: str, summary_date: str) -> None:
     data = load_state(state_file)
     thread = data.get("threads", {}).get("main", {})
     if not thread:
         return
     thread["last_daily_digest_date"] = summary_date
+    assert_safe_data(data)
+    save_state(state_file, data)
+
+
+def _mark_morning_digest_sent(state_file: str, summary_date: str) -> None:
+    data = load_state(state_file)
+    thread = data.get("threads", {}).get("main", {})
+    if not thread:
+        return
+    thread["last_morning_digest_date"] = summary_date
     assert_safe_data(data)
     save_state(state_file, data)
 

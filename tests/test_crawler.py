@@ -56,7 +56,7 @@ class CrawlerTests(unittest.TestCase):
             self.assertEqual(saved["threads"]["main"]["thread_url"], "")
             self.assertEqual(summary["interval_new_count"], 2)
             self.assertEqual(summary["day_new_count"], 2)
-            self.assertEqual(len(notifications), 1)
+            self.assertEqual(len(notifications), 0)
             self.assertFalse((Path(tmp) / "raw.html").exists())
             self.assertFalse((Path(tmp) / "posts.json").exists())
 
@@ -117,7 +117,7 @@ class CrawlerTests(unittest.TestCase):
             self.assertEqual(summary["topics"]["shop_rules"], 1)
             self.assertIn("#12337-#12339", summary["day_res_ranges"])
             self.assertIn("#12340-#12341", summary["day_res_ranges"])
-            self.assertEqual(len(notifications), 1)
+            self.assertEqual(len(notifications), 0)
 
     def test_run_once_sends_hot_alert_when_interval_reaches_threshold(self):
         html = """
@@ -153,7 +153,7 @@ class CrawlerTests(unittest.TestCase):
                     state_file=str(state_path),
                     summary_dir=str(summary_dir),
                     request_timeout=1,
-                    hot_alert_threshold=2,
+                    hot_alert_threshold=3,
                     daily_digest_hour=20,
                 ),
                 fetcher=lambda url, timeout: html,
@@ -164,6 +164,55 @@ class CrawlerTests(unittest.TestCase):
             self.assertEqual(result, 0)
             self.assertEqual(len(notifications), 1)
             self.assertIn("论坛热了", notifications[0][0])
+
+    def test_run_once_suppresses_hot_alert_during_quiet_hours(self):
+        html = """
+        <article><span>#12340</span><time>2026-06-16 01:00</time><p>莠育ｴ・・蠕・■譎る俣縲・/p></article>
+        <article><span>#12341</span><time>2026-06-16 01:10</time><p>譁咎≡繧ｭ繝｣繝ｳ繝壹・繝ｳ縲・/p></article>
+        <article><span>#12342</span><time>2026-06-16 01:20</time><p>繝ｫ繝ｼ繝ｫ遒ｺ隱阪・/p></article>
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = Path(tmp) / "state.json"
+            summary_dir = Path(tmp) / "daily_summary"
+            state_path.write_text(
+                json.dumps(
+                    {
+                        "threads": {
+                            "main": {
+                                "thread_url": "",
+                                "last_seen_res_no": 12339,
+                                "last_seen_hash": "",
+                                "last_checked_at": "",
+                                "new_count_today": 0,
+                            }
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            notifications = []
+
+            result = run_once(
+                Config(
+                    target_url="https://bakusai.com/thread/example/",
+                    bark_key="abc",
+                    state_file=str(state_path),
+                    summary_dir=str(summary_dir),
+                    request_timeout=1,
+                    hot_alert_threshold=3,
+                    daily_digest_hour=20,
+                ),
+                fetcher=lambda url, timeout: html,
+                notifier=lambda title, message: notifications.append((title, message)),
+                now_provider=lambda: "2026-06-16T02:00:00+09:00",
+            )
+
+            saved = json.loads(state_path.read_text(encoding="utf-8"))
+            summary = json.loads((summary_dir / "2026-06-16.json").read_text(encoding="utf-8"))
+            self.assertEqual(result, 0)
+            self.assertEqual(notifications, [])
+            self.assertEqual(saved["threads"]["main"]["last_seen_res_no"], 12342)
+            self.assertEqual(summary["day_new_count"], 3)
 
     def test_run_once_sends_daily_digest_after_digest_hour_once(self):
         with tempfile.TemporaryDirectory() as tmp:
