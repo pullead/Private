@@ -53,6 +53,7 @@ class CrawlerTests(unittest.TestCase):
             summary = json.loads((summary_dir / "2026-06-16.json").read_text(encoding="utf-8"))
             self.assertEqual(result, 0)
             self.assertEqual(saved["threads"]["main"]["last_seen_res_no"], 12341)
+            self.assertEqual(saved["threads"]["main"]["thread_url"], "")
             self.assertEqual(summary["interval_new_count"], 2)
             self.assertEqual(summary["day_new_count"], 2)
             self.assertEqual(len(notifications), 1)

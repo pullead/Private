@@ -1,0 +1,14 @@
+{
+  "threads": {
+    "main": {
+      "error_count": 0,
+      "last_checked_at": "2026-06-16T14:27:05.240724+09:00",
+      "last_error_at": "",
+      "last_seen_hash": "372f9e5e0e7eae08ade53d41c25dccfcb2a91ee63aef92207932426cba6e8b7e",
+      "last_seen_res_no": 450,
+      "last_success_at": "2026-06-16T14:27:05.240724+09:00",
+      "new_count_today": 50,
+      "thread_url": ""
+    }
+  }
+}

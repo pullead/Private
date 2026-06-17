@@ -52,7 +52,7 @@ def run_once(
     day_count = int(daily_summary["day_new_count"]) if daily_summary else 0
 
     thread_state = ThreadState(
-        thread_url=config.target_url,
+        thread_url="",
         last_seen_res_no=max(previous_res_no, metadata.latest_res_no),
         last_seen_hash=metadata.page_hash,
         last_checked_at=checked_at,

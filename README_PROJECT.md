@@ -31,6 +31,6 @@ TARGET_URL
 BARK_KEY
 ```
 
-The workflow runs once every 45 minutes and can also be started manually. It stores
-state in GitHub Actions cache under `.runtime-state/` instead of committing the
-target URL or summaries to the repository.
+The workflow runs once every 45 minutes and can also be started manually. It commits
+only safe monitor state and safe daily summaries. The configured target URL stays in
+GitHub Secrets and is not written to `state.json`.

@@ -6,7 +6,7 @@ on:
     - cron: "*/45 * * * *"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   monitor:
@@ -22,16 +22,6 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Restore monitor state
-        uses: actions/cache@v4
-        with:
-          path: |
-            .runtime-state/state.json
-            .runtime-state/daily_summary
-          key: safe-thread-state-${{ github.run_id }}
-          restore-keys: |
-            safe-thread-state-
-
       - name: Install dependencies
         run: python -m pip install -r requirements.txt
 
@@ -42,7 +32,15 @@ jobs:
         env:
           TARGET_URL: ${{ secrets.TARGET_URL }}
           BARK_KEY: ${{ secrets.BARK_KEY }}
-          STATE_FILE: .runtime-state/state.json
-          SUMMARY_DIR: .runtime-state/daily_summary
+          STATE_FILE: state.json
+          SUMMARY_DIR: daily_summary
           REQUEST_TIMEOUT: "15"
         run: python crawler.py
+
+      - name: Persist safe monitor state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f state.json daily_summary/*.json 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "chore: update safe monitor state"
+          git push
