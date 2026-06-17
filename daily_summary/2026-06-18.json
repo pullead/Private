@@ -1,17 +1,21 @@
 {
-  "day_new_count": 1,
+  "day_new_count": 2,
   "day_res_ranges": [
-    "#487"
+    "#487",
+    "#488"
   ],
   "interval_new_count": 1,
-  "interval_res_range": "#487",
+  "interval_res_range": "#488",
   "interval_topics": {
-    "location_access": 1
+    "needs_manual_check": 1
   },
-  "latest_res_no": 487,
-  "manual_check_ranges": [],
+  "latest_res_no": 488,
+  "manual_check_ranges": [
+    "#488"
+  ],
   "summary_date": "2026-06-18",
   "topics": {
-    "location_access": 1
+    "location_access": 1,
+    "needs_manual_check": 1
   }
 }
