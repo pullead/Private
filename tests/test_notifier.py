@@ -4,6 +4,7 @@ from urllib.parse import unquote
 from notifier import (
     build_daily_digest_message,
     build_hot_alert_message,
+    build_hourly_update_message,
     build_bark_message,
     normalize_bark_key,
     send_bark_notification,
@@ -121,6 +122,27 @@ class NotifierTests(unittest.TestCase):
         self.assertIn("主要論点 / 核心讨论", message)
         self.assertIn("安全要約 / 安全改写", message)
         self.assertIn("通知を開くと元スレへ / 点击查看原帖", message)
+        assert_safe_data({"title": title, "message": message})
+
+    def test_hourly_update_message_reports_no_new_posts(self):
+        title, message = build_hourly_update_message(
+            {
+                "summary_date": "2026-06-16",
+                "interval_new_count": 0,
+                "day_new_count": 23,
+                "latest_res_no": 473,
+                "topics": {"reservation_wait": 2},
+                "interval_topics": {},
+            },
+            "https://bakusai.com/thread/example/",
+            "2026-06-16T12:00:00+09:00",
+        )
+
+        self.assertIn("论坛小时报", title)
+        self.assertIn("本小时 0 レス", title)
+        self.assertIn("時間更新 / 小时更新", message)
+        self.assertIn("本小时暂无新增回复", message)
+        self.assertIn("中日対照 / 中日对照", message)
         assert_safe_data({"title": title, "message": message})
 
     def test_normalize_bark_key_accepts_full_api_url(self):

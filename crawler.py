@@ -11,6 +11,7 @@ from config import Config, load_config
 from notifier import (
     build_daily_digest_message,
     build_hot_alert_message,
+    build_hourly_update_message,
     send_bark_notification,
 )
 from parser import parse_thread_metadata, summarize_shop_topics
@@ -60,6 +61,12 @@ def run_once(
     )
     if should_send_daily and daily_summary is None:
         daily_summary = _load_existing_summary(Path(config.summary_dir) / f"{summary_date}.json")
+    if not daily_summary:
+        daily_summary = _build_empty_hourly_summary(
+            summary_date,
+            metadata.latest_res_no,
+            int(previous.get("new_count_today", 0) or 0),
+        )
     if daily_summary:
         day_count = int(daily_summary.get("day_new_count", daily_summary.get("new_count", 0)) or 0)
     daily_sent = False
@@ -75,11 +82,11 @@ def run_once(
     )
     update_thread_state(config.state_file, "main", thread_state)
 
-    if interval_count == 0 and not (should_send_daily and daily_summary):
-        return 0
-
-    if daily_summary:
+    if interval_count > 0 and daily_summary:
         _save_summary(config.summary_dir, summary_date, daily_summary)
+
+    if _is_quiet_hour(checked_at) and not (should_send_daily and daily_summary and day_count > 0):
+        return 0
     hot_level = _select_hot_alert_level(
         checked_at,
         interval_count,
@@ -99,7 +106,7 @@ def run_once(
                 level="passive",
             )
             daily_sent = True
-        elif hot_level and daily_summary:
+        elif interval_count > 0 and hot_level and daily_summary:
             title, message = build_hot_alert_message(
                 daily_summary, config.target_url, checked_at
             )
@@ -110,6 +117,18 @@ def run_once(
                 notifier,
                 group="hot-alert",
                 level=hot_level,
+            )
+        elif daily_summary:
+            title, message = build_hourly_update_message(
+                daily_summary, config.target_url, checked_at
+            )
+            _notify(
+                config,
+                title,
+                message,
+                notifier,
+                group="hourly-update",
+                level="timeSensitive",
             )
     except Exception as exc:
         print(f"[WARN] Notification failed: {exc}", file=sys.stderr)
@@ -188,6 +207,24 @@ def _append_unique(items: list[str], item: str) -> list[str]:
     return result
 
 
+def _build_empty_hourly_summary(
+    summary_date: str, latest_res_no: int, day_count: int
+) -> dict:
+    summary = {
+        "summary_date": summary_date,
+        "latest_res_no": latest_res_no,
+        "interval_new_count": 0,
+        "day_new_count": day_count,
+        "interval_res_range": "",
+        "day_res_ranges": [],
+        "topics": {},
+        "interval_topics": {},
+        "manual_check_ranges": [],
+    }
+    assert_safe_data(summary)
+    return summary
+
+
 def _notify(
     config: Config,
     title: str,
@@ -223,6 +260,11 @@ def _parse_iso_hour(value: str) -> int:
         return datetime.fromisoformat(value).hour
     except ValueError:
         return 0
+
+
+def _is_quiet_hour(checked_at: str) -> bool:
+    hour = _parse_iso_hour(checked_at)
+    return 0 <= hour < 7
 
 
 def _select_hot_alert_level(

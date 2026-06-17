@@ -271,7 +271,7 @@ class CrawlerTests(unittest.TestCase):
             self.assertIn("论坛日报", notifications[0][0])
             self.assertEqual(saved["threads"]["main"]["last_daily_digest_date"], "2026-06-16")
 
-    def test_run_once_without_new_posts_does_not_notify(self):
+    def test_run_once_without_new_posts_sends_hourly_update(self):
         with tempfile.TemporaryDirectory() as tmp:
             state_path = Path(tmp) / "state.json"
             summary_dir = Path(tmp) / "daily_summary"
@@ -307,7 +307,9 @@ class CrawlerTests(unittest.TestCase):
             )
 
             self.assertEqual(result, 0)
-            self.assertEqual(notifications, [])
+            self.assertEqual(len(notifications), 1)
+            self.assertIn("论坛小时报", notifications[0][0])
+            self.assertIn("本小时暂无新增回复", notifications[0][1])
             self.assertFalse((summary_dir / "2026-06-16.json").exists())
 
     def test_initial_run_sets_baseline_without_notification_or_summary(self):

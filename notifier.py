@@ -87,6 +87,51 @@ def build_bark_message(summary: dict, thread_url: str, checked_at: str) -> tuple
     return build_hot_alert_message(summary, thread_url, checked_at)
 
 
+def build_hourly_update_message(
+    summary: dict, thread_url: str, checked_at: str
+) -> tuple[str, str]:
+    interval_count = int(summary.get("interval_new_count", summary.get("new_count", 0)) or 0)
+    day_count = int(summary.get("day_new_count", interval_count) or 0)
+    latest_res_no = int(summary.get("latest_res_no", 0) or 0)
+    ranked_interval = _rank_topics(summary.get("interval_topics", {}))
+    ranked_day = _rank_topics(summary.get("topics", {}))
+    hour_label = _format_hour(checked_at)
+    title = f"🕐 论坛小时报 · {hour_label}｜本小时 {interval_count} レス"
+
+    if interval_count > 0:
+        main_block = "\n".join(
+            [
+                f"本次新增：{interval_count}レス · 最新#{latest_res_no}",
+                f"範囲 / 范围：{summary.get('interval_res_range', summary.get('res_range', '-')) or '-'}",
+                _format_hot_viewpoints(ranked_interval[:3]),
+            ]
+        )
+    else:
+        main_block = "\n".join(
+            [
+                f"この1時間は新規レスなし / 本小时暂无新增回复",
+                f"本日累計：{day_count}レス · 最新#{latest_res_no}",
+                f"今日の主な話題 / 今日主线：{_format_topic_names(ranked_day[:3])}",
+            ]
+        )
+
+    body = "\n".join(
+        [
+            "━━ 🕐 時間更新 / 小时更新 ━━",
+            main_block,
+            "",
+            "━━ ✍️ 中日対照 / 中日对照 ━━",
+            _format_hourly_takeaway(ranked_interval, ranked_day, interval_count),
+            "",
+            "─────────────────",
+            "通知を開くと元スレへ / 点击查看原帖 →",
+        ]
+    )
+    body = _clip_body(body)
+    assert_safe_data({"title": title, "message": body})
+    return title, body
+
+
 def build_daily_digest_message(
     summary: dict, thread_url: str, checked_at: str
 ) -> tuple[str, str]:
@@ -250,6 +295,21 @@ def _format_hot_takeaway(topic: str) -> str:
     )
 
 
+def _format_hourly_takeaway(
+    ranked_interval: list[tuple[str, int]],
+    ranked_day: list[tuple[str, int]],
+    interval_count: int,
+) -> str:
+    if interval_count <= 0:
+        return "JP：新規レスはありません。既存の流れを維持しています。\nCN：本小时没有新回复，今日整体讨论主线暂时不变。"
+    topic = ranked_interval[0][0] if ranked_interval else ""
+    if topic not in TOPIC_SUMMARIES:
+        return "JP：新規レスはありますが、安全に分類できません。\nCN：本小时有新增，但无法安全归类，建议点开原帖确认。"
+    jp_name, cn_name = _topic_names(topic)
+    jp_summary, cn_summary = TOPIC_SUMMARIES[topic]
+    return f"JP：{jp_name} が中心。{jp_summary}\nCN：{cn_name} 是本小时重点。{cn_summary}"
+
+
 def _format_topic_names(ranked: list[tuple[str, int]]) -> str:
     if not ranked:
         return "なし / 无"
@@ -291,6 +351,14 @@ def _format_date(summary_date: str) -> str:
     if len(parts) != 3:
         return summary_date
     return f"{int(parts[1])}月{int(parts[2])}日"
+
+
+def _format_hour(checked_at: str) -> str:
+    try:
+        hour = int(checked_at[11:13])
+    except (ValueError, IndexError):
+        return "今回"
+    return f"{hour:02d}:00"
 
 
 def _circled(index: int) -> str:
