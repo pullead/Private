@@ -1,19 +1,26 @@
 {
-  "day_new_count": 1,
+  "day_new_count": 15,
   "day_res_ranges": [
-    "#581"
+    "#581",
+    "#582-#595"
   ],
-  "interval_new_count": 1,
-  "interval_res_range": "#581",
+  "interval_new_count": 14,
+  "interval_res_range": "#582-#595",
   "interval_topics": {
-    "needs_manual_check": 1
+    "crowding_popularity": 1,
+    "needs_manual_check": 12,
+    "shop_rules": 1
   },
-  "latest_res_no": 581,
+  "latest_res_no": 595,
   "manual_check_ranges": [
-    "#581"
+    "#582-#587",
+    "#589-#592",
+    "#594-#595"
   ],
   "summary_date": "2026-06-21",
   "topics": {
-    "needs_manual_check": 1
+    "crowding_popularity": 1,
+    "needs_manual_check": 13,
+    "shop_rules": 1
   }
 }
