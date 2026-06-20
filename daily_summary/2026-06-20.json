@@ -1,27 +1,29 @@
 {
-  "day_new_count": 37,
+  "day_new_count": 40,
   "day_res_ranges": [
     "#540-#545",
     "#546-#549",
     "#550-#553",
     "#554",
     "#555-#573",
-    "#574-#576"
+    "#574-#576",
+    "#577-#579"
   ],
   "interval_new_count": 3,
-  "interval_res_range": "#574-#576",
+  "interval_res_range": "#577-#579",
   "interval_topics": {
-    "needs_manual_check": 2,
-    "schedule_change": 1
+    "needs_manual_check": 1,
+    "reservation_wait": 2
   },
-  "latest_res_no": 576,
+  "latest_res_no": 579,
   "manual_check_ranges": [
-    "#575-#576"
+    "#578"
   ],
   "summary_date": "2026-06-20",
   "topics": {
     "business_hours": 1,
-    "needs_manual_check": 35,
+    "needs_manual_check": 36,
+    "reservation_wait": 2,
     "schedule_change": 1
   }
 }
