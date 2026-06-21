@@ -2,13 +2,13 @@
   "threads": {
     "main": {
       "error_count": 0,
-      "last_checked_at": "2026-06-22T03:23:52.230552+09:00",
+      "last_checked_at": "2026-06-22T05:43:27.049015+09:00",
       "last_daily_digest_date": "2026-06-19",
       "last_error_at": "",
-      "last_seen_hash": "b4319c7fef1b02a82208f1f511640dff00db8e4981f2c83a79bb995e7a76decf",
-      "last_seen_res_no": 628,
-      "last_success_at": "2026-06-22T03:23:52.230552+09:00",
-      "new_count_today": 6,
+      "last_seen_hash": "a34bbf8ebc9ce36c9059e44fd000a4804713b7b3ff55a048f498c62d6d26298f",
+      "last_seen_res_no": 632,
+      "last_success_at": "2026-06-22T05:43:27.049015+09:00",
+      "new_count_today": 10,
       "thread_url": ""
     }
   }

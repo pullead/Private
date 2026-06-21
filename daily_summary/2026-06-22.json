@@ -1,20 +1,21 @@
 {
-  "day_new_count": 6,
+  "day_new_count": 10,
   "day_res_ranges": [
     "#623-#627",
-    "#628"
+    "#628",
+    "#629-#632"
   ],
-  "interval_new_count": 1,
-  "interval_res_range": "#628",
+  "interval_new_count": 4,
+  "interval_res_range": "#629-#632",
   "interval_topics": {
-    "needs_manual_check": 1
+    "needs_manual_check": 4
   },
-  "latest_res_no": 628,
+  "latest_res_no": 632,
   "manual_check_ranges": [
-    "#628"
+    "#629-#632"
   ],
   "summary_date": "2026-06-22",
   "topics": {
-    "needs_manual_check": 6
+    "needs_manual_check": 10
   }
 }
