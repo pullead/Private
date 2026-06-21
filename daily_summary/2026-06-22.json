@@ -1,0 +1,19 @@
+{
+  "day_new_count": 5,
+  "day_res_ranges": [
+    "#623-#627"
+  ],
+  "interval_new_count": 5,
+  "interval_res_range": "#623-#627",
+  "interval_topics": {
+    "needs_manual_check": 5
+  },
+  "latest_res_no": 627,
+  "manual_check_ranges": [
+    "#623-#627"
+  ],
+  "summary_date": "2026-06-22",
+  "topics": {
+    "needs_manual_check": 5
+  }
+}
