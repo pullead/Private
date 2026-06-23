@@ -1,0 +1,22 @@
+{
+  "day_new_count": 7,
+  "day_res_ranges": [
+    "#694-#700"
+  ],
+  "interval_new_count": 7,
+  "interval_res_range": "#694-#700",
+  "interval_topics": {
+    "needs_manual_check": 6,
+    "reservation_wait": 1
+  },
+  "latest_res_no": 700,
+  "manual_check_ranges": [
+    "#694-#697",
+    "#699-#700"
+  ],
+  "summary_date": "2026-06-24",
+  "topics": {
+    "needs_manual_check": 6,
+    "reservation_wait": 1
+  }
+}
