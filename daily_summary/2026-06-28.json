@@ -1,0 +1,19 @@
+{
+  "day_new_count": 4,
+  "day_res_ranges": [
+    "#830-#833"
+  ],
+  "interval_new_count": 4,
+  "interval_res_range": "#830-#833",
+  "interval_topics": {
+    "needs_manual_check": 4
+  },
+  "latest_res_no": 833,
+  "manual_check_ranges": [
+    "#830-#833"
+  ],
+  "summary_date": "2026-06-28",
+  "topics": {
+    "needs_manual_check": 4
+  }
+}
