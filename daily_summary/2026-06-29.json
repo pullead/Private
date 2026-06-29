@@ -1,23 +1,30 @@
 {
-  "day_new_count": 13,
+  "day_new_count": 19,
   "day_res_ranges": [
     "#846",
     "#847-#848",
     "#849-#856",
-    "#857-#858"
+    "#857-#858",
+    "#859-#864"
   ],
-  "interval_new_count": 2,
-  "interval_res_range": "#857-#858",
+  "interval_new_count": 6,
+  "interval_res_range": "#859-#864",
   "interval_topics": {
-    "needs_manual_check": 2
+    "crowding_popularity": 1,
+    "needs_manual_check": 4,
+    "reservation_wait": 1
   },
-  "latest_res_no": 858,
+  "latest_res_no": 864,
   "manual_check_ranges": [
-    "#857-#858"
+    "#859-#860",
+    "#862",
+    "#864"
   ],
   "summary_date": "2026-06-29",
   "topics": {
     "business_hours": 1,
-    "needs_manual_check": 12
+    "crowding_popularity": 1,
+    "needs_manual_check": 16,
+    "reservation_wait": 1
   }
 }
