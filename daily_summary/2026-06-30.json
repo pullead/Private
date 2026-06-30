@@ -1,32 +1,31 @@
 {
-  "day_new_count": 42,
+  "day_new_count": 50,
   "day_res_ranges": [
     "#865",
     "#866-#869",
     "#870-#873",
     "#874-#882",
     "#883-#889",
-    "#890-#906"
+    "#890-#906",
+    "#907-#914"
   ],
-  "interval_new_count": 17,
-  "interval_res_range": "#890-#906",
+  "interval_new_count": 8,
+  "interval_res_range": "#907-#914",
   "interval_topics": {
-    "crowding_popularity": 2,
-    "needs_manual_check": 13,
-    "notice_announcement": 1,
-    "reservation_wait": 1
+    "complaint_anomaly": 1,
+    "crowding_popularity": 1,
+    "needs_manual_check": 7
   },
-  "latest_res_no": 906,
+  "latest_res_no": 914,
   "manual_check_ranges": [
-    "#890-#896",
-    "#898",
-    "#900-#901",
-    "#904-#906"
+    "#907-#908",
+    "#910-#914"
   ],
   "summary_date": "2026-06-30",
   "topics": {
-    "crowding_popularity": 2,
-    "needs_manual_check": 37,
+    "complaint_anomaly": 1,
+    "crowding_popularity": 3,
+    "needs_manual_check": 44,
     "notice_announcement": 1,
     "reservation_wait": 2
   }
