@@ -1,0 +1,19 @@
+{
+  "day_new_count": 5,
+  "day_res_ranges": [
+    "#953-#957"
+  ],
+  "interval_new_count": 5,
+  "interval_res_range": "#953-#957",
+  "interval_topics": {
+    "needs_manual_check": 5
+  },
+  "latest_res_no": 957,
+  "manual_check_ranges": [
+    "#953-#957"
+  ],
+  "summary_date": "2026-07-02",
+  "topics": {
+    "needs_manual_check": 5
+  }
+}
