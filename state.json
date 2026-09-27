@@ -2,12 +2,12 @@
   "threads": {
     "main": {
       "error_count": 0,
-      "last_checked_at": "2026-09-28T01:51:18.930316+09:00",
+      "last_checked_at": "2026-09-28T05:00:55.849200+09:00",
       "last_daily_digest_date": "2026-07-02",
       "last_error_at": "",
       "last_seen_hash": "80a13bbedcdf4013f469217e87b387f55f24aedaad37cd37a22b7ff80537bbe7",
       "last_seen_res_no": 1000,
-      "last_success_at": "2026-09-28T01:51:18.930316+09:00",
+      "last_success_at": "2026-09-28T05:00:55.849200+09:00",
       "new_count_today": 15,
       "thread_url": ""
     }
